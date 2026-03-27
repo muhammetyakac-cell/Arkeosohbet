@@ -596,6 +596,8 @@ export const MessageInput: React.FC = () => {
         {/* Envanterlik Seçeneği */}
         <label className="flex items-center gap-2 cursor-pointer">
           <input
+            id="artifact-checkbox"
+            name="artifact-checkbox"
             type="checkbox"
             checked={isArtifact}
             onChange={e => setIsArtifact(e.target.checked)}
@@ -607,16 +609,21 @@ export const MessageInput: React.FC = () => {
         {/* Envanterlik Etiketi */}
         {isArtifact && (
           <input
+            id="artifact-label-input"
+            name="artifact-label"
             type="text"
             placeholder="Örn: Çift Körüklü Seramik Teknikleri"
             value={artifactLabel}
             onChange={e => setArtifactLabel(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-amber-200 rounded bg-white"
+            autoComplete="off"
           />
         )}
 
         {/* Mesaj Alanı */}
         <textarea
+          id="message-input"
+          name="message-content"
           value={content}
           onChange={e => setContent(e.target.value)}
           onKeyDown={(e) => {
