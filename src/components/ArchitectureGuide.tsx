@@ -67,9 +67,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sessionId = localStorage.getItem('stratSession') || crypto.randomUUID();
       localStorage.setItem('stratSession', sessionId);
 
-      // Rastgele antik isim üret
-      const { data: names } = await supabase.from('ancient_names_pool').select('name').limit(1).order('RANDOM()');
-      const ancientName = names?.[0]?.name || 'Anonim Arkeolog';
+      // Rastgele antik isim üret - Tüm isimlerden birini seç
+      const { data: names } = await supabase.from('ancient_names_pool').select('name');
+      const randomIndex = Math.floor(Math.random() * (names?.length || 1));
+      const ancientName = names?.[randomIndex]?.name || 'Anonim Arkeolog';
 
       const newUser: User = {
         sessionId,
