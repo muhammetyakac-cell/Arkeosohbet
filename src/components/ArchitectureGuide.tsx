@@ -218,30 +218,62 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
     
-    // Database'e kaydet
+    // Database'e kaydet - Toggle mekanizması (varsa sil, yoksa ekle)
     if (sessionId) {
       try {
-        const { error } = await supabase.from('reactions').insert({
-          message_id: messageId,
-          user_session_id: sessionId,
-          reaction_type: type,
-        });
+        // Önce mevcut reaksiyonu kontrol et
+        const { data: existingReaction } = await supabase
+          .from('reactions')
+          .select('id')
+          .eq('message_id', messageId)
+          .eq('user_session_id', sessionId)
+          .eq('reaction_type', type)
+          .single();
 
-        if (error) {
-          console.error('❌ Oy kaydı başarısız:', error);
-          // State'i geri al
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === messageId
-                ? type === 'restore'
-                  ? { ...msg, restore_count: msg.restore_count - delta }
-                  : { ...msg, destroy_count: msg.destroy_count - delta }
-                : msg
-            )
-          );
+        if (existingReaction) {
+          // Zaten oy vermişse, oy'u geri al (sil)
+          const { error: deleteError } = await supabase
+            .from('reactions')
+            .delete()
+            .eq('id', existingReaction.id);
+
+          if (deleteError) {
+            console.error('❌ Oy silme başarısız:', deleteError);
+            // State'i geri al
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === messageId
+                  ? type === 'restore'
+                    ? { ...msg, restore_count: msg.restore_count - delta }
+                    : { ...msg, destroy_count: msg.destroy_count - delta }
+                  : msg
+              )
+            );
+          }
+        } else {
+          // Yeni oy ekle
+          const { error: insertError } = await supabase.from('reactions').insert({
+            message_id: messageId,
+            user_session_id: sessionId,
+            reaction_type: type,
+          });
+
+          if (insertError) {
+            console.error('❌ Oy kaydı başarısız:', insertError);
+            // State'i geri al
+            setMessages(prev =>
+              prev.map(msg =>
+                msg.id === messageId
+                  ? type === 'restore'
+                    ? { ...msg, restore_count: msg.restore_count - delta }
+                    : { ...msg, destroy_count: msg.destroy_count - delta }
+                  : msg
+              )
+            );
+          }
         }
       } catch (err) {
-        console.error('❌ Oy kaydında hata:', err);
+        console.error('❌ Oy işleminde hata:', err);
       }
     }
   };

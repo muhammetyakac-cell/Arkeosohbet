@@ -50,7 +50,7 @@ CREATE TABLE reactions (
   user_session_id VARCHAR(255) NOT NULL,
   reaction_type VARCHAR(50) CHECK (reaction_type IN ('restore', 'destroy')) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(message_id, user_session_id) -- Her kullanıcı mesaj başına bir kez oy versin
+  UNIQUE(message_id, user_session_id, reaction_type) -- Her kullanıcı her tip reaksiyonu sadece 1 kez versin
 );
 
 -- 5. ANTIK KAHRAMAN İSİMLERİ POOL'U (Random Ad Atamas
