@@ -23,15 +23,8 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
  * Bu client uygulamanın her yerinde kullanılabilir.
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  // Realtime ayarları
   realtime: {
-    // Otomatik başlat
-    enabled: true,
-    // Broadcast kanalını etkinleştir (isteğe bağlı)
-    broadcast: { ack: true },
-    // WebSocket seçenekleri
     params: {
-      // Heartbeat aralığı (ms)
       eventsPerSecond: 10,
     },
   },

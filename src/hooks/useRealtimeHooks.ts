@@ -2,7 +2,7 @@
 // STRATIGRAPH: Supabase Realtime Hooks
 // ============================================
 
-import { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { RealtimeChannel } from '@supabase/realtime-js';
 import { supabase } from '../lib/supabaseClient';
 
@@ -341,7 +341,7 @@ export const useRealtimeLayer = (layerId: string | null) => {
 };
 
 /**
- * 5. CUSTOM HOOK: SUPABASE REALTIME HAZIRLIĞı
+ * 6. CUSTOM HOOK: SUPABASE REALTIME HAZIRLIĞı
  * 
  * Bağlantı durumunu izle ve hata yönet
  */
@@ -375,57 +375,4 @@ export const useSupabaseRealtimeStatus = () => {
   }, []);
 
   return { status, lastError };
-};
-
-/**
- * 6. EXAMPLE: useRealtimeMessages NEDİ KULLAN
- * 
- * Component örneği:
- */
-export const ChatWithRealtimeExample: React.FC<{ layerId: string }> = ({ layerId }) => {
-  const [messages, setMessages] = React.useState<any[]>([]);
-
-  const handleMessageReceived = (message: any) => {
-    setMessages((prev) => {
-      const exists = prev.find((m) => m.id === message.id);
-      if (exists) {
-        return prev.map((m) => (m.id === message.id ? message : m));
-      }
-      return [...prev, message];
-    });
-  };
-
-  useRealtimeMessages(layerId, handleMessageReceived);
-  const { activeUsers } = useRealtimeActiveUsers(layerId);
-  const { status } = useSupabaseRealtimeStatus();
-
-  return (
-    <div>
-      <div className="flex items-center justify-between p-4 bg-white border-b">
-        <h2>Katman: {layerId}</h2>
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-3 h-3 rounded-full ${
-              status === 'CONNECTED' ? 'bg-green-500' : 'bg-red-500'
-            }`}
-          />
-          <span className="text-sm text-gray-600">{status}</span>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <p className="text-sm text-gray-600 mb-4">
-          👥 Aktif kullanıcılar: {activeUsers.length}
-        </p>
-        <div className="space-y-2">
-          {messages.map((msg) => (
-            <div key={msg.id} className="p-3 bg-gray-100 rounded">
-              <p className="font-semibold">{msg.ancient_name}</p>
-              <p className="text-sm text-gray-700">{msg.content}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 };

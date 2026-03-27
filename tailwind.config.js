@@ -163,17 +163,10 @@ module.exports = {
         'depth-dark': '0 20px 40px rgba(92, 64, 51, 0.3)',
         
         // Arkeolojik "Kazı Efekti"
-        'excavation': '
-          -5px -5px 0px 0px rgba(245, 158, 11, 0.2),
-          5px 5px 0px 0px rgba(245, 158, 11, 0.1),
-          inset 0 0 10px rgba(139, 115, 85, 0.1)
-        ',
+        'excavation': '-5px -5px 0px 0px rgba(245, 158, 11, 0.2), 5px 5px 0px 0px rgba(245, 158, 11, 0.1), inset 0 0 10px rgba(139, 115, 85, 0.1)',
         
         // Envanterlik Parıltısı
-        'artifact': '
-          0 0 20px rgba(245, 158, 11, 0.5),
-          0 0 40px rgba(245, 158, 11, 0.3)
-        ',
+        'artifact': '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)',
       },
 
       // ============================================
