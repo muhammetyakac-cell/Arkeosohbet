@@ -146,7 +146,7 @@ interface ChatContextType {
   activeUsers: any[];
   setCurrentLayer: (layerId: string) => void;
   addMessage: (message: Message) => void;
-  updateMessageReaction: (messageId: string, type: 'restore' | 'destroy', delta: number) => void;
+  updateMessageReaction: (messageId: string, type: 'restore' | 'destroy', delta: number) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -204,7 +204,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages(prev => [...prev, message]);
   };
 
-  const updateMessageReaction = (messageId: string, type: 'restore' | 'destroy', delta: number) => {
+  const updateMessageReaction = async (messageId: string, type: 'restore' | 'destroy', delta: number) => {
+    const sessionId = localStorage.getItem('stratSession');
+    
+    // State'i update et
     setMessages(prev =>
       prev.map(msg =>
         msg.id === messageId
@@ -214,6 +217,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : msg
       )
     );
+    
+    // Database'e kaydet
+    if (sessionId) {
+      try {
+        const { error } = await supabase.from('reactions').insert({
+          message_id: messageId,
+          user_session_id: sessionId,
+          reaction_type: type,
+        });
+
+        if (error) {
+          console.error('❌ Oy kaydı başarısız:', error);
+          // State'i geri al
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === messageId
+                ? type === 'restore'
+                  ? { ...msg, restore_count: msg.restore_count - delta }
+                  : { ...msg, destroy_count: msg.destroy_count - delta }
+                : msg
+            )
+          );
+        }
+      } catch (err) {
+        console.error('❌ Oy kaydında hata:', err);
+      }
+    }
   };
 
   return (
@@ -393,14 +423,14 @@ export const MessageActions: React.FC<MessageItemProps> = ({ message }) => {
     <div className="flex gap-4 mt-2 justify-between items-center">
       <div className="flex gap-2">
         <button
-          onClick={() => updateMessageReaction(message.id, 'restore', 1)}
+          onClick={async () => await updateMessageReaction(message.id, 'restore', 1)}
           className="flex items-center gap-1 px-3 py-1 rounded bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium transition"
           title="Restore Et - Bunu Kurtarmalıyız!"
         >
           🔄 {message.restore_count}
         </button>
         <button
-          onClick={() => updateMessageReaction(message.id, 'destroy', 1)}
+          onClick={async () => await updateMessageReaction(message.id, 'destroy', 1)}
           className="flex items-center gap-1 px-3 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium transition"
           title="Kül Et - Tarihten Sil"
         >
