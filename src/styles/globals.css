@@ -1,0 +1,489 @@
+/* ============================================
+   STRATIGRAPH: Global Styles & Animations
+   ============================================= */
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* ============================================
+   FONT IMPORTS
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Georgia:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ============================================
+   ROOT VARIABLES
+   ============================================= */
+
+:root {
+  /* Toprak Tonları */
+  --color-earth-light: #D2B48C;
+  --color-earth-mid: #8B7355;
+  --color-earth-dark: #5C4033;
+
+  /* Aksanlar */
+  --color-restore: #10B981;
+  --color-destroy: #EF4444;
+  --color-artifact: #F59E0B;
+
+  /* Arka Planlar */
+  --color-bg-light: #FFFBF0;
+  --color-bg-dark: #1F1F1F;
+
+  /* Gölgeler */
+  --shadow-depth-light: 0 2px 4px rgba(139, 115, 85, 0.1);
+  --shadow-depth-mid: 0 8px 16px rgba(139, 115, 85, 0.2);
+  --shadow-depth-dark: 0 20px 40px rgba(92, 64, 51, 0.3);
+  --shadow-excavation: -5px -5px 0px 0px rgba(245, 158, 11, 0.2),
+    5px 5px 0px 0px rgba(245, 158, 11, 0.1),
+    inset 0 0 10px rgba(139, 115, 85, 0.1);
+  --shadow-artifact: 0 0 20px rgba(245, 158, 11, 0.5),
+    0 0 40px rgba(245, 158, 11, 0.3);
+}
+
+/* ============================================
+   BODY & BASE STYLES
+   ============================================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background-color: var(--color-bg-light);
+  color: #1f1f1f;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+  overflow-x: hidden;
+}
+
+/* Tarayıcı sıfırlaması */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Georgia', 'Garamond', serif;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #3e2723;
+}
+
+h1 {
+  font-size: 3.5rem;
+}
+
+h2 {
+  font-size: 2.5rem;
+}
+
+h3 {
+  font-size: 1.875rem;
+}
+
+h4 {
+  font-size: 1.5rem;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+/* Monospace (Yazıtlar) */
+code,
+pre {
+  font-family: 'Courier New', monospace;
+  background-color: rgba(139, 115, 85, 0.05);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+
+pre {
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================= */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(139, 115, 85, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 115, 85, 0.3);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 115, 85, 0.5);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================= */
+
+/* ANTİK SAYACINI YAK */
+@keyframes artifactPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(245, 158, 11, 0);
+  }
+}
+
+/* KAZIYE GENIŞLET */
+@keyframes excavationGlow {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    text-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+  }
+}
+
+/* PARTIKÜLLER YUKARI ÇIKIŞ */
+@keyframes particleRise {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(0);
+  }
+}
+
+/* MESAJGELDİ */
+@keyframes messageSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ONLINE DURUM PULS */
+@keyframes onlinePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+}
+
+/* RESTORE TİTEŞ */
+@keyframes restoreShake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ============================================
+   CUSTOM UTILITY CLASSES
+   ============================================= */
+
+.strat-text {
+  @apply text-amber-900 font-sans;
+}
+
+.strat-heading {
+  @apply text-2xl font-serif text-amber-800 tracking-tight;
+}
+
+.strat-card {
+  @apply bg-white border-l-4 border-amber-300 rounded-lg shadow-md;
+}
+
+.strat-button {
+  @apply px-4 py-2 rounded transition-all duration-300 font-medium;
+}
+
+.artifact-glow {
+  animation: artifactPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.bg-excavation {
+  @apply bg-gradient-to-b from-amber-50 via-amber-100 to-amber-50;
+}
+
+.blueprint-grid {
+  @apply bg-blue-900;
+  background-image: linear-gradient(
+      90deg,
+      rgba(79, 172, 254, 0.15) 1px,
+      transparent 1px
+    ),
+    linear-gradient(rgba(79, 172, 254, 0.15) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* ============================================
+   BUTTON STYLES
+   ============================================= */
+
+button {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-restore {
+  @apply px-4 py-2 rounded bg-green-100 hover:bg-green-200 text-green-700 font-semibold;
+}
+
+.btn-destroy {
+  @apply px-4 py-2 rounded bg-red-100 hover:bg-red-200 text-red-700 font-semibold;
+}
+
+.btn-primary {
+  @apply px-4 py-2 rounded bg-amber-700 hover:bg-amber-800 text-white shadow-md;
+}
+
+/* ============================================
+   INPUT STYLES
+   ============================================= */
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  border: 2px solid rgba(139, 115, 85, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-earth-mid);
+  box-shadow: 0 0 0 4px rgba(139, 115, 85, 0.1);
+}
+
+input::placeholder {
+  color: rgba(139, 115, 85, 0.5);
+}
+
+/* ============================================
+   CARD STYLES
+   ============================================= */
+
+.card-message {
+  @apply p-4 bg-white rounded-lg border-l-4 border-amber-400 hover:bg-amber-50 transition-colors;
+  animation: messageSlide 0.3s ease-out;
+}
+
+.card-message.artifact {
+  border-color: var(--color-artifact);
+  animation: artifactPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ============================================
+   LAYER ITEMS
+   ============================================= */
+
+.layer-item {
+  @apply px-4 py-3 rounded-lg transition-all duration-300 hover:bg-opacity-10 cursor-pointer;
+}
+
+.layer-item-active {
+  @apply scale-105 shadow-lg;
+}
+
+/* ============================================
+   MODALS & OVERLAYS
+   ============================================= */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(92, 64, 51, 0.3);
+  max-width: 600px;
+  padding: 2rem;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================= */
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+  }
+
+  body {
+    font-size: 14px;
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   DARK MODE (İsteğe bağlı)
+   ============================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-light: #1f1f1f;
+    --color-bg-dark: #0a0a0a;
+  }
+
+  body {
+    background-color: var(--color-bg-light);
+    color: #f0f0f0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #e8d5b7;
+  }
+
+  input,
+  textarea,
+  select {
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+    border-color: rgba(217, 167, 108, 0.2);
+  }
+
+  .card-message {
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(139, 115, 85, 0.2);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(217, 167, 108, 0.4);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 167, 108, 0.6);
+  }
+}
+
+/* ============================================
+   UTILITY: PRINT STYLES
+   ============================================= */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    display: none;
+  }
+}
