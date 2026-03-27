@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "env": {
+    "VITE_SUPABASE_URL": "https://ucscrfhemenvzmgwnnbf.supabase.co",
+    "VITE_SUPABASE_ANON_KEY": "sb_publishable_un0wP7NFT6oUB1pd9clh2Q_N2oo378u"
+  }
+}
