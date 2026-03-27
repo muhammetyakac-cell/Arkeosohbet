@@ -39,6 +39,7 @@
 // ============================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 interface User {
   sessionId: string;
@@ -59,6 +60,30 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Otomatik oturum açma
+    const initializeUser = async () => {
+      const sessionId = localStorage.getItem('stratSession') || crypto.randomUUID();
+      localStorage.setItem('stratSession', sessionId);
+
+      // Rastgele antik isim üret
+      const { data: names } = await supabase.from('ancient_names_pool').select('name').limit(1).order('RANDOM()');
+      const ancientName = names?.[0]?.name || 'Anonim Arkeolog';
+
+      const newUser: User = {
+        sessionId,
+        ancientName,
+        currentLayerId: '1', // Default katman
+        status: 'online',
+        lastSeen: new Date(),
+      };
+
+      setUser(newUser);
+    };
+
+    initializeUser();
+  }, []);
 
   const updateStatus = (status: 'online' | 'away' | 'offline') => {
     if (user) {
@@ -90,27 +115,27 @@ export const useAuth = () => {
 
 interface Message {
   id: string;
-  layerId: string;
-  userId: string;
-  ancientName: string;
+  layer_id: string;
+  user_id: string;
+  ancient_name: string;
   content: string;
-  isArtifact: boolean;
-  artifactLabel?: string;
-  restoreCount: number;
-  destroyCount: number;
-  createdAt: Date;
+  is_artifact: boolean;
+  artifact_label?: string;
+  restore_count: number;
+  destroy_count: number;
+  created_at: string;
   edited: boolean;
 }
 
 interface Layer {
   id: string;
   name: string;
-  displayName: string;
+  display_name: string;
   description: string;
-  themeColor: string;
+  theme_color: string;
   etymology?: string;
-  layerType: 'chronological' | 'thematic' | 'special';
-  iconEmoji: string;
+  layer_type: 'chronological' | 'thematic' | 'special';
+  icon_emoji: string;
 }
 
 interface ChatContextType {
@@ -139,7 +164,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     setLoading(true);
     // Supabase'den katmanları getir
-    // fetchLayers().then(setLayers).catch(setError).finally(() => setLoading(false));
+    const fetchLayers = async () => {
+      try {
+        const { data, error } = await supabase.from('layers').select('*').order('sort_order');
+        if (error) throw error;
+        setLayers(data || []);
+        if (data && data.length > 0 && !currentLayerId) {
+          setCurrentLayerId(data[0].id);
+        }
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLayers();
   }, []);
 
   const addMessage = (message: Message) => {
@@ -194,7 +233,7 @@ interface LayerItemProps {
 }
 
 export const LayerItem: React.FC<LayerItemProps> = ({ layer, isActive, onSelect }) => {
-  const bgColor = isActive ? layer.themeColor : 'transparent';
+  const bgColor = isActive ? layer.theme_color : 'transparent';
   const textColor = isActive ? 'text-white' : 'text-gray-700';
 
   return (
@@ -203,13 +242,13 @@ export const LayerItem: React.FC<LayerItemProps> = ({ layer, isActive, onSelect 
       className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-300 hover:bg-opacity-10 hover:bg-gray-400 ${textColor}`}
       style={{
         backgroundColor: isActive ? bgColor : undefined,
-        borderLeft: isActive ? `4px solid ${layer.themeColor}` : 'none',
+        borderLeft: isActive ? `4px solid ${layer.theme_color}` : 'none',
       }}
       title={layer.etymology}
     >
       <div className="flex items-center gap-2">
-        <span className="text-xl">{layer.iconEmoji}</span>
-        <span className="font-medium truncate">{layer.displayName}</span>
+        <span className="text-xl">{layer.icon_emoji}</span>
+        <span className="font-medium truncate">{layer.display_name}</span>
       </div>
       <p className="text-xs text-gray-500 mt-1 truncate">{layer.description}</p>
     </button>
@@ -219,9 +258,9 @@ export const LayerItem: React.FC<LayerItemProps> = ({ layer, isActive, onSelect 
 export const LayerSelector: React.FC = () => {
   const { layers, currentLayerId, setCurrentLayer } = useChat();
 
-  const chronologicalLayers = layers.filter(l => l.layerType === 'chronological');
-  const thematicLayers = layers.filter(l => l.layerType === 'thematic');
-  const specialLayers = layers.filter(l => l.layerType === 'special');
+  const chronologicalLayers = layers.filter(l => l.layer_type === 'chronological');
+  const thematicLayers = layers.filter(l => l.layer_type === 'thematic');
+  const specialLayers = layers.filter(l => l.layer_type === 'special');
 
   return (
     <div className="flex flex-col gap-6 p-4 bg-gradient-to-b from-amber-50 to-stone-100 rounded-lg">
@@ -350,7 +389,7 @@ export const MessageActions: React.FC<MessageItemProps> = ({ message }) => {
         </button>
       </div>
       <p className="text-xs text-gray-500">
-        {new Date(message.createdAt).toLocaleTimeString('tr-TR')}
+        {new Date(message.created_at).toLocaleTimeString('tr-TR')}
       </p>
     </div>
   );
@@ -361,12 +400,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
     <div className="mb-4 p-4 bg-white rounded-lg border-l-4 border-amber-300 hover:bg-amber-50 transition">
       {/* Başlık: Kullanıcı Adı */}
       <div className="flex items-center justify-between mb-2">
-        <p className="font-bold text-amber-900">{message.ancientName}</p>
+        <p className="font-bold text-amber-900">{message.ancient_name}</p>
         {message.edited && <span className="text-xs text-gray-400">düzenlendi</span>}
       </div>
 
       {/* Envanterlik İşareti */}
-      {message.isArtifact && <ArtifactBadge label={message.artifactLabel} />}
+      {message.is_artifact && <ArtifactBadge label={message.artifact_label} />}
 
       {/* Mesaj İçeriği */}
       <p className="text-gray-800 whitespace-pre-wrap">{message.content}</p>
@@ -379,7 +418,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
 export const ChatWindow: React.FC = () => {
   const { messages, currentLayerId } = useChat();
-  const layerMessages = messages.filter(m => m.layerId === currentLayerId);
+  const layerMessages = messages.filter(m => m.layer_id === currentLayerId);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-white via-amber-50 to-white">
@@ -417,15 +456,15 @@ export const MessageInput: React.FC = () => {
 
     const message: Message = {
       id: crypto.randomUUID(),
-      layerId: currentLayerId,
-      userId: user.sessionId,
-      ancientName: user.ancientName,
+      layer_id: currentLayerId!,
+      user_id: user.sessionId,
+      ancient_name: user.ancientName,
       content,
-      isArtifact,
-      artifactLabel: isArtifact ? artifactLabel : undefined,
-      restoreCount: 0,
-      destroyCount: 0,
-      createdAt: new Date(),
+      is_artifact: isArtifact,
+      artifact_label: isArtifact ? artifactLabel : undefined,
+      restore_count: 0,
+      destroy_count: 0,
+      created_at: new Date().toISOString(),
       edited: false,
     };
 
@@ -503,7 +542,7 @@ export const MainLayout: React.FC = () => {
         {/* Header */}
         <header className="bg-gradient-to-r from-amber-700 to-amber-600 text-white px-6 py-4 shadow-md">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            {currentLayer?.iconEmoji} {currentLayer?.displayName || 'Stratigraph'}
+            {currentLayer?.icon_emoji} {currentLayer?.display_name || 'Stratigraph'}
           </h1>
           <p className="text-amber-100 text-sm mt-1">{currentLayer?.etymology}</p>
         </header>
