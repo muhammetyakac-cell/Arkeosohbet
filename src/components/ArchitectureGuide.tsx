@@ -39,7 +39,7 @@
 // ============================================
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, getMessagesByLayer, insertMessage } from '../lib/supabaseClient';
 
 interface User {
   sessionId: string;
@@ -180,6 +180,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     fetchLayers();
   }, []);
+
+  useEffect(() => {
+    if (!currentLayerId) return;
+    setLoading(true);
+
+    const loadMessages = async () => {
+      try {
+        const initialMessages = await getMessagesByLayer(currentLayerId);
+        setMessages(initialMessages || []);
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMessages();
+  }, [currentLayerId]);
 
   const addMessage = (message: Message) => {
     setMessages(prev => [...prev, message]);
@@ -468,13 +486,29 @@ export const MessageInput: React.FC = () => {
       edited: false,
     };
 
-    addMessage(message);
+    try {
+      const persisted = await insertMessage({
+        layer_id: message.layer_id,
+        user_id: message.user_id,
+        ancient_name: message.ancient_name,
+        content: message.content,
+        is_artifact: message.is_artifact,
+        artifact_label: message.artifact_label,
+        restore_count: message.restore_count,
+        destroy_count: message.destroy_count,
+        created_at: message.created_at,
+      });
+
+      addMessage(persisted);
+    } catch (err) {
+      console.error('❌ Mesaj kaydı başarısız:', err);
+      // Yerel olarak yine ekleyebiliriz, ama öncelik DB.
+      addMessage(message);
+    }
+
     setContent('');
     setIsArtifact(false);
     setArtifactLabel('');
-
-    // Supabase''ye kaydet
-    // await supabase.from('messages').insert([message]);
   };
 
   return (

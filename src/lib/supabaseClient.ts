@@ -103,9 +103,13 @@ export const getMessagesByLayer = async (layerId: string) => {
 export const insertMessage = async (message: {
   layer_id: string;
   user_id: string;
+  ancient_name: string;
   content: string;
   is_artifact: boolean;
   artifact_label?: string;
+  restore_count?: number;
+  destroy_count?: number;
+  created_at?: string;
 }) => {
   const { data, error } = await supabase
     .from('messages')
