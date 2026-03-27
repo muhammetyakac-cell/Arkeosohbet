@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newUser: User = {
         sessionId,
         ancientName,
-        currentLayerId: '1', // Default katman
+        currentLayerId: '', // ChatProvider'da set edilecek
         status: 'online',
         lastSeen: new Date(),
       };
@@ -160,8 +160,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, setUser } = useAuth();
 
-  // Katmanları yükle
+  // Katmanları yükle ve user'ın currentLayerId'sini güncelle
   useEffect(() => {
     setLoading(true);
     // Supabase'den katmanları getir
@@ -170,8 +171,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data, error } = await supabase.from('layers').select('*').order('created_at');
         if (error) throw error;
         setLayers(data || []);
-        if (data && data.length > 0 && !currentLayerId) {
-          setCurrentLayerId(data[0].id);
+        if (data && data.length > 0) {
+          const firstLayerId = data[0].id;
+          setCurrentLayerId(firstLayerId);
+          // User'ın currentLayerId'sini de güncelle
+          if (user && !user.currentLayerId) {
+            setUser({ ...user, currentLayerId: firstLayerId });
+          }
         }
       } catch (err) {
         setError(String(err));
@@ -180,7 +186,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     fetchLayers();
-  }, []);
+  }, [user, setUser]);
 
   useEffect(() => {
     if (!currentLayerId) return;
