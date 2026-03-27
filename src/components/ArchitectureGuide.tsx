@@ -489,7 +489,7 @@ export const MessageInput: React.FC = () => {
     try {
       const persisted = await insertMessage({
         layer_id: message.layer_id,
-        user_id: message.user_id,
+        user_session_id: message.user_id,
         ancient_name: message.ancient_name,
         content: message.content,
         is_artifact: message.is_artifact,
