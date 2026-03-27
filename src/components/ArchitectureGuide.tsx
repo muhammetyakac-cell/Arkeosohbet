@@ -166,7 +166,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Supabase'den katmanları getir
     const fetchLayers = async () => {
       try {
-        const { data, error } = await supabase.from('layers').select('*').order('sort_order');
+        const { data, error } = await supabase.from('layers').select('*').order('created_at');
         if (error) throw error;
         setLayers(data || []);
         if (data && data.length > 0 && !currentLayerId) {
