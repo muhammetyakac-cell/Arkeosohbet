@@ -684,17 +684,7 @@ export const MainLayout: React.FC = () => {
 };
 
 // ============================================
-// 7. ANA APP
+// EXPORT
 // ============================================
-
-export const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <ChatProvider>
-        <MainLayout />
-      </ChatProvider>
-    </AuthProvider>
-  );
-};
-
-export default App;
+// MainLayout app'ın ana layout'ıdır
+// AuthProvider, ChatProvider ve MainLayout App.tsx'de kullanılır
