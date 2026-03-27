@@ -206,75 +206,73 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateMessageReaction = async (messageId: string, type: 'restore' | 'destroy', delta: number) => {
     const sessionId = localStorage.getItem('stratSession');
+    if (!sessionId) {
+      console.error('❌ Session ID bulunamadı');
+      return;
+    }
     
-    // State'i update et
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.id === messageId
-          ? type === 'restore'
-            ? { ...msg, restore_count: msg.restore_count + delta }
-            : { ...msg, destroy_count: msg.destroy_count + delta }
-          : msg
-      )
-    );
-    
-    // Database'e kaydet - Toggle mekanizması (varsa sil, yoksa ekle)
-    if (sessionId) {
-      try {
-        // Önce mevcut reaksiyonu kontrol et
-        const { data: existingReaction } = await supabase
-          .from('reactions')
-          .select('id')
-          .eq('message_id', messageId)
-          .eq('user_session_id', sessionId)
-          .eq('reaction_type', type)
-          .single();
+    try {
+      // Önce mevcut reaksiyonu kontrol et - .maybeSingle() hata vermez eğer sonuç yoksa
+      const { data: existingReaction, error: selectError } = await supabase
+        .from('reactions')
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('user_session_id', sessionId)
+        .eq('reaction_type', type)
+        .maybeSingle();
 
-        if (existingReaction) {
-          // Zaten oy vermişse, oy'u geri al (sil)
-          const { error: deleteError } = await supabase
-            .from('reactions')
-            .delete()
-            .eq('id', existingReaction.id);
-
-          if (deleteError) {
-            console.error('❌ Oy silme başarısız:', deleteError);
-            // State'i geri al
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === messageId
-                  ? type === 'restore'
-                    ? { ...msg, restore_count: msg.restore_count - delta }
-                    : { ...msg, destroy_count: msg.destroy_count - delta }
-                  : msg
-              )
-            );
-          }
-        } else {
-          // Yeni oy ekle
-          const { error: insertError } = await supabase.from('reactions').insert({
-            message_id: messageId,
-            user_session_id: sessionId,
-            reaction_type: type,
-          });
-
-          if (insertError) {
-            console.error('❌ Oy kaydı başarısız:', insertError);
-            // State'i geri al
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === messageId
-                  ? type === 'restore'
-                    ? { ...msg, restore_count: msg.restore_count - delta }
-                    : { ...msg, destroy_count: msg.destroy_count - delta }
-                  : msg
-              )
-            );
-          }
-        }
-      } catch (err) {
-        console.error('❌ Oy işleminde hata:', err);
+      if (selectError) {
+        throw selectError;
       }
+
+      if (existingReaction) {
+        // Zaten oy vermişse, oy'u geri al (sil)
+        const { error: deleteError } = await supabase
+          .from('reactions')
+          .delete()
+          .eq('id', existingReaction.id);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+        
+        // State'i güncelle (azalt)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId
+              ? type === 'restore'
+                ? { ...msg, restore_count: Math.max(0, msg.restore_count - 1) }
+                : { ...msg, destroy_count: Math.max(0, msg.destroy_count - 1) }
+              : msg
+          )
+        );
+        console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy geri alındı`);
+      } else {
+        // Yeni oy ekle
+        const { error: insertError } = await supabase.from('reactions').insert({
+          message_id: messageId,
+          user_session_id: sessionId,
+          reaction_type: type,
+        });
+
+        if (insertError) {
+          throw insertError;
+        }
+        
+        // State'i güncelle (artır)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId
+              ? type === 'restore'
+                ? { ...msg, restore_count: msg.restore_count + 1 }
+                : { ...msg, destroy_count: msg.destroy_count + 1 }
+              : msg
+          )
+        );
+        console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy verildi`);
+      }
+    } catch (err) {
+      console.error('❌ Oy işleminde hata:', err);
     }
   };
 
@@ -499,7 +497,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
 export const ChatWindow: React.FC = () => {
   const { messages, currentLayerId } = useChat();
+  const scrollEndRef = React.useRef<HTMLDivElement>(null);
   const layerMessages = messages.filter(m => m.layer_id === currentLayerId);
+
+  // En son mesaja scroll et
+  React.useEffect(() => {
+    scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [layerMessages]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-white via-amber-50 to-white">
@@ -515,6 +519,7 @@ export const ChatWindow: React.FC = () => {
           {layerMessages.map(message => (
             <MessageItem key={message.id} message={message} />
           ))}
+          <div ref={scrollEndRef} />
         </div>
       )}
     </div>
@@ -603,7 +608,13 @@ export const MessageInput: React.FC = () => {
         <textarea
           value={content}
           onChange={e => setContent(e.target.value)}
-          placeholder="Arkeolojik buluntunuzu yazın..."
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder="Arkeolojik buluntunuzu yazın... (Enter: Gönder, Shift+Enter: Yeni satır)"
           className="w-full px-4 py-3 border border-amber-200 rounded-lg bg-white text-sm resize-none"
           rows={3}
         />
