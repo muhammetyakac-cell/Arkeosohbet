@@ -190,8 +190,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map(msg =>
         msg.id === messageId
           ? type === 'restore'
-            ? { ...msg, restoreCount: msg.restoreCount + delta }
-            : { ...msg, destroyCount: msg.destroyCount + delta }
+            ? { ...msg, restore_count: msg.restore_count + delta }
+            : { ...msg, destroy_count: msg.destroy_count + delta }
           : msg
       )
     );
@@ -378,14 +378,14 @@ export const MessageActions: React.FC<MessageItemProps> = ({ message }) => {
           className="flex items-center gap-1 px-3 py-1 rounded bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium transition"
           title="Restore Et - Bunu Kurtarmalıyız!"
         >
-          🔄 {message.restoreCount}
+          🔄 {message.restore_count}
         </button>
         <button
           onClick={() => updateMessageReaction(message.id, 'destroy', 1)}
           className="flex items-center gap-1 px-3 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium transition"
           title="Kül Et - Tarihten Sil"
         >
-          ⚰️ {message.destroyCount}
+          ⚰️ {message.destroy_count}
         </button>
       </div>
       <p className="text-xs text-gray-500">
