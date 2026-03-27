@@ -84,12 +84,7 @@ export const getLayers = async () => {
 export const getMessagesByLayer = async (layerId: string) => {
   const { data, error } = await supabase
     .from('messages')
-    .select(`
-      *,
-      active_users (
-        ancient_name
-      )
-    `)
+    .select('*')
     .eq('layer_id', layerId)
     .order('created_at', { ascending: true });
 
