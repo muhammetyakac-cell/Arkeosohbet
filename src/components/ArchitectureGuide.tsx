@@ -160,24 +160,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user, setUser } = useAuth();
 
-  // Katmanları yükle ve user'ın currentLayerId'sini güncelle
+  // Katmanları yükle
   useEffect(() => {
     setLoading(true);
-    // Supabase'den katmanları getir
     const fetchLayers = async () => {
       try {
         const { data, error } = await supabase.from('layers').select('*').order('created_at');
         if (error) throw error;
         setLayers(data || []);
-        if (data && data.length > 0) {
-          const firstLayerId = data[0].id;
-          setCurrentLayerId(firstLayerId);
-          // User'ın currentLayerId'sini de güncelle
-          if (user && !user.currentLayerId) {
-            setUser({ ...user, currentLayerId: firstLayerId });
-          }
+        if (data && data.length > 0 && !currentLayerId) {
+          setCurrentLayerId(data[0].id);
         }
       } catch (err) {
         setError(String(err));
@@ -186,7 +179,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     fetchLayers();
-  }, [user, setUser]);
+  }, [currentLayerId]);
 
   useEffect(() => {
     if (!currentLayerId) return;
@@ -212,6 +205,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateMessageReaction = async (messageId: string, type: 'restore' | 'destroy', delta: number) => {
     const sessionId = localStorage.getItem('stratSession');
+    
+    console.log(`🔍 Oy işlemi başlatıldı:`, { messageId, type, sessionId });
+    
     if (!sessionId) {
       console.error('❌ Session ID bulunamadı');
       return;
@@ -226,6 +222,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_session_id', sessionId)
         .eq('reaction_type', type)
         .maybeSingle();
+
+      console.log(`📋 SELECT sonucu:`, { existingReaction, selectError });
 
       if (selectError) {
         throw selectError;
@@ -255,6 +253,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy geri alındı`);
       } else {
         // Yeni oy ekle
+        console.log(`➕ Yeni oy ekleniyor...`);
         const { error: insertError } = await supabase.from('reactions').insert({
           message_id: messageId,
           user_session_id: sessionId,
@@ -262,9 +261,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (insertError) {
+          console.error('❌ INSERT HATASI:', insertError.message, insertError.code);
           throw insertError;
         }
         
+        console.log(`✅ Database'ye kaydedildi`);
         // State'i güncelle (artır)
         setMessages(prev =>
           prev.map(msg =>
@@ -277,8 +278,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
         console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy verildi`);
       }
-    } catch (err) {
-      console.error('❌ Oy işleminde hata:', err);
+    } catch (err: any) {
+      console.error('❌ Oy işleminde HATA:');
+      console.error('   Message:', err.message);
+      console.error('   Code:', err.code);
+      console.error('   Details:', err.details);
+      console.error('   Full Error:', err);
     }
   };
 
