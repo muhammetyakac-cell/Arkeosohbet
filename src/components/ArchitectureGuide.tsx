@@ -58,6 +58,44 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USER_IP_STORAGE_KEY = 'stratUserIp';
+const USER_NICK_STORAGE_KEY = 'stratAncientName';
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getPublicIp = async (): Promise<string | null> => {
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3000);
+    const response = await fetch('https://api.ipify.org?format=json', {
+      signal: controller.signal,
+    });
+    window.clearTimeout(timeout);
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.ip || null;
+  } catch (error) {
+    console.warn('⚠️ IP adresi alınamadı, mevcut takma ad korunuyor.', error);
+    return null;
+  }
+};
+
+const getDeterministicNameByKey = (key: string, names: Array<{ name: string }> | null | undefined) => {
+  if (!names || names.length === 0) {
+    return 'Anonim Arkeolog';
+  }
+  const index = hashString(key) % names.length;
+  return names[index]?.name || 'Anonim Arkeolog';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
@@ -67,10 +105,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sessionId = localStorage.getItem('stratSession') || crypto.randomUUID();
       localStorage.setItem('stratSession', sessionId);
 
-      // Rastgele antik isim üret - Tüm isimlerden birini seç
+      const savedIp = localStorage.getItem(USER_IP_STORAGE_KEY);
+      const savedAncientName = localStorage.getItem(USER_NICK_STORAGE_KEY);
+
+      // IP bazlı sabit isim üretimi için isim havuzu
       const { data: names } = await supabase.from('ancient_names_pool').select('name');
-      const randomIndex = Math.floor(Math.random() * (names?.length || 1));
-      const ancientName = names?.[randomIndex]?.name || 'Anonim Arkeolog';
+      const currentIp = await getPublicIp();
+
+      let ancientName = savedAncientName || getDeterministicNameByKey(sessionId, names);
+
+      if (currentIp && savedIp === currentIp && savedAncientName) {
+        ancientName = savedAncientName;
+      } else if (currentIp) {
+        ancientName = getDeterministicNameByKey(currentIp, names);
+        localStorage.setItem(USER_IP_STORAGE_KEY, currentIp);
+        localStorage.setItem(USER_NICK_STORAGE_KEY, ancientName);
+      } else if (!savedAncientName) {
+        localStorage.setItem(USER_NICK_STORAGE_KEY, ancientName);
+      }
 
       const newUser: User = {
         sessionId,
@@ -95,6 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem('stratSession');
+    localStorage.removeItem(USER_NICK_STORAGE_KEY);
+    localStorage.removeItem(USER_IP_STORAGE_KEY);
   };
 
   return (

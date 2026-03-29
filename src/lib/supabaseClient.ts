@@ -82,14 +82,49 @@ export const getLayers = async () => {
  * Spesifik katmandaki mesajları getir
  */
 export const getMessagesByLayer = async (layerId: string) => {
-  const { data, error } = await supabase
+  const { data: messages, error } = await supabase
     .from('messages')
     .select('*')
     .eq('layer_id', layerId)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return data || [];
+
+  if (!messages || messages.length === 0) {
+    return [];
+  }
+
+  const messageIds = messages.map((message) => message.id);
+
+  const { data: reactions, error: reactionsError } = await supabase
+    .from('reactions')
+    .select('message_id, reaction_type')
+    .in('message_id', messageIds);
+
+  if (reactionsError) throw reactionsError;
+
+  const reactionCounts = (reactions || []).reduce<Record<string, { restore: number; destroy: number }>>(
+    (acc, reaction) => {
+      if (!acc[reaction.message_id]) {
+        acc[reaction.message_id] = { restore: 0, destroy: 0 };
+      }
+
+      if (reaction.reaction_type === 'restore') {
+        acc[reaction.message_id].restore += 1;
+      } else if (reaction.reaction_type === 'destroy') {
+        acc[reaction.message_id].destroy += 1;
+      }
+
+      return acc;
+    },
+    {}
+  );
+
+  return messages.map((message) => ({
+    ...message,
+    restore_count: reactionCounts[message.id]?.restore ?? 0,
+    destroy_count: reactionCounts[message.id]?.destroy ?? 0,
+  }));
 };
 
 /**
