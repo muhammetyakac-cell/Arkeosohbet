@@ -58,6 +58,44 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USER_IP_STORAGE_KEY = 'stratUserIp';
+const USER_NICK_STORAGE_KEY = 'stratAncientName';
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const getPublicIp = async (): Promise<string | null> => {
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3000);
+    const response = await fetch('https://api.ipify.org?format=json', {
+      signal: controller.signal,
+    });
+    window.clearTimeout(timeout);
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.ip || null;
+  } catch (error) {
+    console.warn('⚠️ IP adresi alınamadı, mevcut takma ad korunuyor.', error);
+    return null;
+  }
+};
+
+const getDeterministicNameByKey = (key: string, names: Array<{ name: string }> | null | undefined) => {
+  if (!names || names.length === 0) {
+    return 'Anonim Arkeolog';
+  }
+  const index = hashString(key) % names.length;
+  return names[index]?.name || 'Anonim Arkeolog';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
@@ -67,14 +105,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const sessionId = localStorage.getItem('stratSession') || crypto.randomUUID();
       localStorage.setItem('stratSession', sessionId);
 
-      // Rastgele antik isim üret
-      const { data: names } = await supabase.from('ancient_names_pool').select('name').limit(1).order('RANDOM()');
-      const ancientName = names?.[0]?.name || 'Anonim Arkeolog';
+      const savedIp = localStorage.getItem(USER_IP_STORAGE_KEY);
+      const savedAncientName = localStorage.getItem(USER_NICK_STORAGE_KEY);
+
+      // IP bazlı sabit isim üretimi için isim havuzu
+      const { data: names } = await supabase.from('ancient_names_pool').select('name');
+      const currentIp = await getPublicIp();
+
+      let ancientName = savedAncientName || getDeterministicNameByKey(sessionId, names);
+
+      if (currentIp && savedIp === currentIp && savedAncientName) {
+        ancientName = savedAncientName;
+      } else if (currentIp) {
+        ancientName = getDeterministicNameByKey(currentIp, names);
+        localStorage.setItem(USER_IP_STORAGE_KEY, currentIp);
+        localStorage.setItem(USER_NICK_STORAGE_KEY, ancientName);
+      } else if (!savedAncientName) {
+        localStorage.setItem(USER_NICK_STORAGE_KEY, ancientName);
+      }
 
       const newUser: User = {
         sessionId,
         ancientName,
-        currentLayerId: '1', // Default katman
+        currentLayerId: '', // ChatProvider'da set edilecek
         status: 'online',
         lastSeen: new Date(),
       };
@@ -94,6 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem('stratSession');
+    localStorage.removeItem(USER_NICK_STORAGE_KEY);
+    localStorage.removeItem(USER_IP_STORAGE_KEY);
   };
 
   return (
@@ -145,7 +200,7 @@ interface ChatContextType {
   activeUsers: any[];
   setCurrentLayer: (layerId: string) => void;
   addMessage: (message: Message) => void;
-  updateMessageReaction: (messageId: string, type: 'restore' | 'destroy', delta: number) => void;
+  updateMessageReaction: (messageId: string, type: 'restore' | 'destroy', delta: number) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -163,7 +218,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Katmanları yükle
   useEffect(() => {
     setLoading(true);
-    // Supabase'den katmanları getir
     const fetchLayers = async () => {
       try {
         const { data, error } = await supabase.from('layers').select('*').order('created_at');
@@ -179,7 +233,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     fetchLayers();
-  }, []);
+  }, [currentLayerId]);
 
   useEffect(() => {
     if (!currentLayerId) return;
@@ -203,16 +257,88 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages(prev => [...prev, message]);
   };
 
-  const updateMessageReaction = (messageId: string, type: 'restore' | 'destroy', delta: number) => {
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.id === messageId
-          ? type === 'restore'
-            ? { ...msg, restore_count: msg.restore_count + delta }
-            : { ...msg, destroy_count: msg.destroy_count + delta }
-          : msg
-      )
-    );
+  const updateMessageReaction = async (messageId: string, type: 'restore' | 'destroy', delta: number) => {
+    const sessionId = localStorage.getItem('stratSession');
+    
+    console.log(`🔍 Oy işlemi başlatıldı:`, { messageId, type, sessionId });
+    
+    if (!sessionId) {
+      console.error('❌ Session ID bulunamadı');
+      return;
+    }
+    
+    try {
+      // Önce mevcut reaksiyonu kontrol et - .maybeSingle() hata vermez eğer sonuç yoksa
+      const { data: existingReaction, error: selectError } = await supabase
+        .from('reactions')
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('user_session_id', sessionId)
+        .eq('reaction_type', type)
+        .maybeSingle();
+
+      console.log(`📋 SELECT sonucu:`, { existingReaction, selectError });
+
+      if (selectError) {
+        throw selectError;
+      }
+
+      if (existingReaction) {
+        // Zaten oy vermişse, oy'u geri al (sil)
+        const { error: deleteError } = await supabase
+          .from('reactions')
+          .delete()
+          .eq('id', existingReaction.id);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+        
+        // State'i güncelle (azalt)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId
+              ? type === 'restore'
+                ? { ...msg, restore_count: Math.max(0, msg.restore_count - 1) }
+                : { ...msg, destroy_count: Math.max(0, msg.destroy_count - 1) }
+              : msg
+          )
+        );
+        console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy geri alındı`);
+      } else {
+        // Yeni oy ekle
+        console.log(`➕ Yeni oy ekleniyor...`);
+        const { error: insertError } = await supabase.from('reactions').insert({
+          message_id: messageId,
+          user_session_id: sessionId,
+          reaction_type: type,
+        });
+
+        if (insertError) {
+          console.error('❌ INSERT HATASI:', insertError.message, insertError.code);
+          throw insertError;
+        }
+        
+        console.log(`✅ Database'ye kaydedildi`);
+        // State'i güncelle (artır)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId
+              ? type === 'restore'
+                ? { ...msg, restore_count: msg.restore_count + 1 }
+                : { ...msg, destroy_count: msg.destroy_count + 1 }
+              : msg
+          )
+        );
+        console.log(`✅ ${type === 'restore' ? '🔄' : '⚰️'} Oy verildi`);
+      }
+    } catch (err: any) {
+      console.error('❌ Oy işleminde HATA:');
+      console.error('   Message:', err.message);
+      console.error('   Code:', err.code);
+      console.error('   Details:', err.details);
+      console.error('   Full Error:', err);
+    }
   };
 
   return (
@@ -392,14 +518,14 @@ export const MessageActions: React.FC<MessageItemProps> = ({ message }) => {
     <div className="flex gap-4 mt-2 justify-between items-center">
       <div className="flex gap-2">
         <button
-          onClick={() => updateMessageReaction(message.id, 'restore', 1)}
+          onClick={async () => await updateMessageReaction(message.id, 'restore', 1)}
           className="flex items-center gap-1 px-3 py-1 rounded bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium transition"
           title="Restore Et - Bunu Kurtarmalıyız!"
         >
           🔄 {message.restore_count}
         </button>
         <button
-          onClick={() => updateMessageReaction(message.id, 'destroy', 1)}
+          onClick={async () => await updateMessageReaction(message.id, 'destroy', 1)}
           className="flex items-center gap-1 px-3 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium transition"
           title="Kül Et - Tarihten Sil"
         >
@@ -436,7 +562,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
 export const ChatWindow: React.FC = () => {
   const { messages, currentLayerId } = useChat();
+  const scrollEndRef = React.useRef<HTMLDivElement>(null);
   const layerMessages = messages.filter(m => m.layer_id === currentLayerId);
+
+  // En son mesaja scroll et
+  React.useEffect(() => {
+    scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [layerMessages]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-white via-amber-50 to-white">
@@ -452,6 +584,7 @@ export const ChatWindow: React.FC = () => {
           {layerMessages.map(message => (
             <MessageItem key={message.id} message={message} />
           ))}
+          <div ref={scrollEndRef} />
         </div>
       )}
     </div>
@@ -517,6 +650,8 @@ export const MessageInput: React.FC = () => {
         {/* Envanterlik Seçeneği */}
         <label className="flex items-center gap-2 cursor-pointer">
           <input
+            id="artifact-checkbox"
+            name="artifact-checkbox"
             type="checkbox"
             checked={isArtifact}
             onChange={e => setIsArtifact(e.target.checked)}
@@ -528,19 +663,30 @@ export const MessageInput: React.FC = () => {
         {/* Envanterlik Etiketi */}
         {isArtifact && (
           <input
+            id="artifact-label-input"
+            name="artifact-label"
             type="text"
             placeholder="Örn: Çift Körüklü Seramik Teknikleri"
             value={artifactLabel}
             onChange={e => setArtifactLabel(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-amber-200 rounded bg-white"
+            autoComplete="off"
           />
         )}
 
         {/* Mesaj Alanı */}
         <textarea
+          id="message-input"
+          name="message-content"
           value={content}
           onChange={e => setContent(e.target.value)}
-          placeholder="Arkeolojik buluntunuzu yazın..."
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder="Arkeolojik buluntunuzu yazın... (Enter: Gönder, Shift+Enter: Yeni satır)"
           className="w-full px-4 py-3 border border-amber-200 rounded-lg bg-white text-sm resize-none"
           rows={3}
         />
@@ -592,17 +738,7 @@ export const MainLayout: React.FC = () => {
 };
 
 // ============================================
-// 7. ANA APP
+// EXPORT
 // ============================================
-
-export const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <ChatProvider>
-        <MainLayout />
-      </ChatProvider>
-    </AuthProvider>
-  );
-};
-
-export default App;
+// MainLayout app'ın ana layout'ıdır
+// AuthProvider, ChatProvider ve MainLayout App.tsx'de kullanılır
