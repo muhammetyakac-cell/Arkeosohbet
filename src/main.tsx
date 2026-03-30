@@ -2,6 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './styles/globals.css'
+import { inject } from '@vercel/analytics'
+
+// Inject Vercel Analytics
+inject()
 
 // Health check (Development only)
 if (import.meta.env.DEV) {
